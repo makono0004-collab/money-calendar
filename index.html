@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>月間お金管理カレンダー</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#f5f3ee;
+  --surface:#ffffff;
+  --surface-2:#fbf9f4;
+  --ink:#1c1a17;
+  --ink-soft:#5a544c;
+  --line:#e6e1d6;
+  --line-strong:#cdc6b6;
+  --accent:#2f6d5b;        /* 深いモスグリーン */
+  --accent-soft:#e6efe9;
+  --expense:#b9462f;       /* テラコッタ */
+  --income:#2f6d5b;
+  --borrow:#a8741f;        /* ゴールデンブラウン */
+  --repay:#3858a8;         /* 落ち着いた青 */
+  --transfer:#7a5fb6;      /* くすみ紫 */
+  --today:#fff4cc;
+  --shadow: 0 1px 0 rgba(28,26,23,.04), 0 8px 24px -16px rgba(28,26,23,.18);
+  --radius:14px;
+  --radius-sm:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:"Satoshi","Hiragino Sans","Noto Sans JP",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea,button{font-family:inherit;font-size:14px;color:var(--ink)}
+input,select,textarea{background:#fff;border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;outline:none;transition:border-color .15s,box-shadow .15s;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,109,91,.15)}
+textarea{resize:vertical;min-height:60px;font-family:inherit}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line-strong);background:#fff;border-radius:8px;padding:8px 12px;font-weight:500;color:var(--ink);transition:all .15s;white-space:nowrap}
+.btn:hover{border-color:var(--ink);background:var(--surface-2)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#245848;border-color:#245848}
+.btn-ghost{border-color:transparent;background:transparent}
+.btn-ghost:hover{background:var(--surface-2);border-color:var(--line)}
+.btn-danger{color:var(--expense);border-color:var(--line)}
+.btn-danger:hover{background:#fbeae5;border-color:var(--expense)}
+.btn-sm{padding:5px 9px;font-size:12px;border-radius:6px}
+
+/* App layout */
+.app{max-width:1480px;margin:0 auto;padding:18px;display:grid;grid-template-columns:300px 1fr 340px;gap:18px}
+@media (max-width:1180px){.app{grid-template-columns:280px 1fr;}.col-right{grid-column:1/-1}}
+@media (max-width:780px){.app{grid-template-columns:1fr;padding:12px;gap:12px}}
+
+header.brand{
+  grid-column:1/-1;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 4px 2px;
+  gap:10px;flex-wrap:wrap;
+}
+@media (max-width:520px){
+  .brand h1{font-size:15px}
+  .brand small{display:none}
+  .brand-mark{width:26px;height:26px;font-size:13px}
+}
+.brand-name{display:flex;align-items:center;gap:10px}
+.brand-mark{width:30px;height:30px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900}
+.brand h1{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em}
+.brand small{color:var(--ink-soft);font-size:12px}
+
+/* Panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.panel-head{padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.panel-head h2{margin:0;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft)}
+.panel-body{padding:8px 16px 16px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px;font-weight:500}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* Calendar */
+.cal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;flex-wrap:wrap}
+.cal-toolbar .ym{display:flex;align-items:center;gap:6px;font-weight:700;font-size:16px}
+.cal-toolbar .ym select{font-weight:700;font-size:16px;padding:6px 8px;border:none;background:transparent;width:auto;cursor:pointer}
+.cal-toolbar .ym select:hover{background:var(--surface-2)}
+.cal-actions{display:flex;gap:6px;flex-wrap:wrap}
+
+.cal-wrap{padding:0 8px 12px;overflow-x:auto}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+@media (max-width:780px){.cal{grid-template-columns:repeat(7,minmax(96px,1fr));min-width:720px}}
+.cal .dow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);text-align:center;padding:6px 0}
+.cal .dow.sun{color:var(--expense)}
+.cal .dow.sat{color:#3858a8}
+.day{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;min-height:110px;padding:6px 6px 8px;display:flex;flex-direction:column;gap:4px;position:relative;transition:border-color .15s, background .15s}
+.day:hover{border-color:var(--line-strong)}
+.day.other{opacity:.4}
+.day.today{background:var(--today);border-color:#e8c948;box-shadow:0 0 0 2px rgba(232,201,72,.35)}
+.day .d-head{display:flex;align-items:center;justify-content:space-between}
+.day .d-num{font-weight:700;font-size:13px}
+.day.sun .d-num{color:var(--expense)}
+.day.sat .d-num{color:#3858a8}
+.day .add{border:none;background:transparent;color:var(--ink-soft);font-size:16px;line-height:1;padding:0 4px;border-radius:6px;cursor:pointer}
+.day .add:hover{background:#fff;color:var(--ink)}
+.entries{display:flex;flex-direction:column;gap:3px}
+.entry-pill{display:flex;align-items:center;gap:4px;font-size:11px;padding:2px 6px;border-radius:6px;background:#fff;border:1px solid var(--line);overflow:hidden}
+.entry-pill .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.entry-pill .pill-amt{font-weight:600;font-variant-numeric:tabular-nums;margin-left:auto;font-size:10px}
+.entry-pill .pill-memo{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-soft);flex:1;min-width:0}
+.type-expense .dot{background:var(--expense)}
+.type-income .dot{background:var(--income)}
+.type-borrow .dot{background:var(--borrow)}
+.type-repay .dot{background:var(--repay)}
+.type-transfer .dot{background:var(--transfer)}
+
+/* Summary */
+.kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--ink-soft);font-size:12px}
+.kv .v{font-weight:600}
+.kv.total .v{font-size:16px;color:var(--accent)}
+.kv.debt .v{color:var(--expense)}
+.section-title{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:14px 0 4px}
+
+/* Detail list */
+.detail-list{display:flex;flex-direction:column;gap:6px;max-height:560px;overflow-y:auto;padding:0 16px 16px}
+.detail-list .day-group{margin-top:8px}
+.detail-list .day-group-head{font-size:11px;color:var(--ink-soft);font-weight:700;margin-bottom:4px;padding-left:2px}
+.entry-row{display:flex;align-items:flex-start;gap:8px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.entry-row .swatch{width:4px;align-self:stretch;border-radius:2px;background:var(--line)}
+.entry-row.type-expense .swatch{background:var(--expense)}
+.entry-row.type-income .swatch{background:var(--income)}
+.entry-row.type-borrow .swatch{background:var(--borrow)}
+.entry-row.type-repay .swatch{background:var(--repay)}
+.entry-row.type-transfer .swatch{background:var(--transfer)}
+.entry-row .er-main{flex:1;min-width:0}
+.entry-row .er-top{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.entry-row .er-type{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.04em}
+.entry-row .er-amt{font-weight:700;font-variant-numeric:tabular-nums;font-size:14px}
+.entry-row .er-memo{font-size:12px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.entry-row .er-meta{font-size:11px;color:var(--ink-soft);margin-top:2px}
+.entry-row .del{background:transparent;border:none;color:var(--ink-soft);font-size:14px;line-height:1;padding:2px 4px;border-radius:6px}
+.entry-row .del:hover{background:#fbeae5;color:var(--expense)}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(28,26,23,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:14px}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:14px;max-width:460px;width:100%;box-shadow:0 20px 60px -10px rgba(0,0,0,.4);max-height:90vh;overflow-y:auto}
+.modal-head{padding:16px 18px 8px;display:flex;align-items:center;justify-content:space-between}
+.modal-head h3{margin:0;font-size:15px;font-weight:700}
+.modal-body{padding:8px 18px 16px}
+.modal-foot{padding:10px 18px 16px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--line)}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--surface-2);padding:3px;border-radius:9px}
+.seg button{background:transparent;border:none;padding:7px 4px;border-radius:6px;font-size:12px;font-weight:600;color:var(--ink-soft)}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:all .25s;z-index:100;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+.amount-input{font-variant-numeric:tabular-nums;text-align:right}
+.muted{color:var(--ink-soft);font-size:11px;margin-top:4px}
+
+/* Footer */
+.footer-note{grid-column:1/-1;text-align:center;color:var(--ink-soft);font-size:11px;padding:8px 4px 4px}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="brand">
+    <div class="brand-name">
+      <div class="brand-mark">¥</div>
+      <div>
+        <h1>月間お金管理カレンダー</h1>
+        <small>日別記録・口座残高・借入管理・端末内保存</small>
+      </div>
+    </div>
+    <div class="cal-actions">
+      <button class="btn btn-sm" id="btn-sample">サンプル入力</button>
+      <button class="btn btn-sm btn-danger" id="btn-clear">クリア</button>
+    </div>
+  </header>
+
+  <!-- LEFT: Basic input -->
+  <aside class="panel col-left">
+    <div class="panel-head"><h2>基本入力</h2></div>
+    <div class="panel-body">
+      <div class="row2">
+        <div class="field">
+          <label>年</label>
+          <select id="year"></select>
+        </div>
+        <div class="field">
+          <label>月</label>
+          <select id="month"></select>
+        </div>
+      </div>
+
+      <div class="section-title">開始残高</div>
+      <div class="field"><label>財布</label><input class="amount-input" type="number" inputmode="numeric" id="start-wallet" value="0"></div>
+      <div class="field"><label>ゆうちょ</label><input class="amount-input" type="number" inputmode="numeric" id="start-yucho" value="0"></div>
+      <div class="field"><label>セブン</label><input class="amount-input" type="number" inputmode="numeric" id="start-seven" value="0"></div>
+      <div class="field"><label>ワンバンク</label><input class="amount-input" type="number" inputmode="numeric" id="start-onebank" value="0"></div>
+
+      <div class="section-title">借入残高(開始)</div>
+      <div class="field"><label>プロミス</label><input class="amount-input" type="number" inputmode="numeric" id="start-promise" value="0"></div>
+      <div class="field"><label>ワンバンク借入</label><input class="amount-input" type="number" inputmode="numeric" id="start-onebank-debt" value="0"></div>
+
+      <div class="section-title">今月の予算</div>
+      <div class="field"><input class="amount-input" type="number" inputmode="numeric" id="budget" value="0"></div>
+
+      <div class="section-title">月メモ</div>
+      <div class="field"><textarea id="month-memo" placeholder="今月のメモ..."></textarea></div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn btn-primary btn-sm" id="btn-save">この端末に保存</button>
+        <button class="btn btn-sm" id="btn-export">バックアップ書き出し</button>
+        <label class="btn btn-sm" style="cursor:pointer">
+          バックアップ読込
+          <input type="file" id="file-import" accept="application/json,.json" style="display:none">
+        </label>
+      </div>
+      <div class="muted">「この端末に保存」でブラウザ内に記録されます。次回開いた時に自動で読み込まれます。</div>
+    </div>
+  </aside>
+
+  <!-- CENTER: Calendar + Summary -->
+  <main class="panel col-center">
+    <div class="cal-toolbar">
+      <div class="ym">
+        <button class="btn btn-ghost btn-sm" id="btn-prev">‹</button>
+        <span id="ym-label">2026年5月</span>
+        <button class="btn btn-ghost btn-sm" id="btn-next">›</button>
+      </div>
+      <div class="cal-actions">
+        <button class="btn btn-sm" id="btn-transfer">口座間移動</button>
+        <button class="btn btn-sm" id="btn-refresh">カレンダー更新</button>
+      </div>
+    </div>
+
+    <div class="cal-wrap">
+      <div class="cal" id="cal"></div>
+    </div>
+
+    <div class="panel-head" style="border-top:1px solid var(--line);margin-top:6px"><h2>今月の集計</h2></div>
+    <div class="panel-body" style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px">
+      <div>
+        <div class="kv"><span class="k">支出合計</span><span class="v" id="sum-expense" style="color:var(--expense)">¥0</span></div>
+        <div class="kv"><span class="k">収入合計</span><span class="v" id="sum-income" style="color:var(--income)">¥0</span></div>
+        <div class="kv"><span class="k">口座移動合計</span><span class="v" id="sum-transfer" style="color:var(--transfer)">¥0</span></div>
+        <div class="kv"><span class="k">借入合計</span><span class="v" id="sum-borrow" style="color:var(--borrow)">¥0</span></div>
+        <div class="kv"><span class="k">返済合計</span><span class="v" id="sum-repay" style="color:var(--repay)">¥0</span></div>
+      </div>
+      <div>
+        <div class="kv"><span class="k">財布</span><span class="v" id="bal-wallet">¥0</span></div>
+        <div class="kv"><span class="k">ゆうちょ</span><span class="v" id="bal-yucho">¥0</span></div>
+        <div class="kv"><span class="k">セブン</span><span class="v" id="bal-seven">¥0</span></div>
+        <div class="kv"><span class="k">ワンバンク</span><span class="v" id="bal-onebank">¥0</span></div>
+        <div class="kv total"><span class="k">合計残高</span><span class="v" id="bal-total">¥0</span></div>
+        <div class="kv debt"><span class="k">プロミス残高</span><span class="v" id="bal-promise">¥0</span></div>
+        <div class="kv debt"><span class="k">ワンバンク借入</span><span class="v" id="bal-onebank-debt">¥0</span></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT: Entry list -->
+  <aside class="panel col-right">
+    <div class="panel-head">
+      <h2>明細一覧</h2>
+      <small style="color:var(--ink-soft);font-size:11px" id="entry-count">0件</small>
+    </div>
+    <div class="detail-list" id="detail-list"></div>
+  </aside>
+
+  <div class="footer-note">データは「この端末に保存」を押した時のみブラウザに保存されます。定期的にバックアップを書き出すことをおすすめします。</div>
+</div>
+
+<!-- Entry modal -->
+<div class="modal-bg" id="modal-entry">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-entry-title">明細追加</h3>
+      <button class="btn btn-ghost btn-sm" data-close>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>種別</label>
+        <div class="seg" id="seg-type">
+          <button data-type="expense" class="on">支出</button>
+          <button data-type="income">収入</button>
+          <button data-type="borrow">借入</button>
+          <button data-type="repay">返済</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>日付</label>
+        <input type="date" id="entry-date">
+      </div>
+      <div class="field" id="field-account">
+        <label id="lbl-account">入力先 (口座)</label>
+        <select id="entry-account"></select>
+      </div>
+      <div class="field">
+        <label>金額</label>
+        <input type="number" inputmode="numeric" class="amount-input" id="entry-amount" placeholder="0">
+      </div>
+      <div class="field">
+        <label>内容メモ</label>
+        <input type="text" id="entry-memo" placeholder="例:コンビニ、給料、家賃 など">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>キャンセル</button>
+      <button class="btn btn-primary" id="btn-save-entry">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer modal -->
+<div class="modal-bg" id="modal-transfer">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>口座間移動</h3>
+      <button class="btn btn-ghost btn-sm" data-close>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>日付</label>
+        <input type="date" id="tr-date">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>移動元</label>
+          <select id="tr-from"></select>
+        </div>
+        <div class="field">
+          <label>移動先</label>
+          <select id="tr-to"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label>金額</label>
+        <input type="number" inputmode="numeric" class="amount-input" id="tr-amount" placeholder="0">
+      </div>
+      <div class="field">
+        <label>メモ(任意)</label>
+        <input type="text" id="tr-memo" placeholder="例:ATM 入金">
+      </div>
+      <div class="muted">収支ではなく、残高の移動として反映されます。</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>キャンセル</button>
+      <button class="btn btn-primary" id="btn-save-transfer">追加</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============ Constants ============ */
+const STORAGE_KEY = "money-calendar-v1";
+const ACCOUNTS = [
+  { id:"wallet",  name:"財布" },
+  { id:"yucho",   name:"ゆうちょ" },
+  { id:"seven",   name:"セブン" },
+  { id:"onebank", name:"ワンバンク" },
+];
+const DEBT_ACCOUNTS = [
+  { id:"promise",      name:"プロミス" },
+  { id:"onebankDebt",  name:"ワンバンク借入" },
+];
+const DOW = ["日","月","火","水","木","金","土"];
+
+/* ============ State ============ */
+let state = defaultState();
+
+function defaultState(){
+  const now = new Date();
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth()+1, // 1-12
+    start: { wallet:0, yucho:0, seven:0, onebank:0, promise:0, onebankDebt:0 },
+    budget: 0,
+    memo: "",
+    entries: [], // {id,type,date(YYYY-MM-DD),account,amount,memo, fromAcc?, toAcc?}
+  };
+}
+
+/* ============ Utilities ============ */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => document.querySelectorAll(sel);
+const fmt = n => "¥" + (Math.round(n)||0).toLocaleString("ja-JP");
+const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1800); }
+function pad2(n){ return String(n).padStart(2,"0"); }
+function ymd(y,m,d){ return `${y}-${pad2(m)}-${pad2(d)}`; }
+function accountName(id){
+  const a = ACCOUNTS.find(x=>x.id===id) || DEBT_ACCOUNTS.find(x=>x.id===id);
+  return a ? a.name : id;
+}
+function typeLabel(t){
+  return ({expense:"支出",income:"収入",borrow:"借入",repay:"返済",transfer:"移動"})[t]||t;
+}
+function daysInMonth(y,m){ return new Date(y,m,0).getDate(); }
+
+/* ============ Persistence ============
+   sandboxed iframe では localStorage が使えないことがあるため、
+   Cookie をフォールバックとして併用する。
+*/
+function setCookie(name, value, days){
+  const exp = new Date(Date.now() + days*864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
+}
+function getCookie(name){
+  const m = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()[\]\\/+^])/g,"\\$1") + "=([^;]*)"));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+const _LS_KEY = ["local","Storage"].join("");
+function _getLS(){ try{ return window[_LS_KEY]; }catch(_){ return null; } }
+function tryStorage(){
+  try{
+    const s = _getLS(); if(!s) return false;
+    const k = "__t"; s.setItem(k,"1"); s.removeItem(k);
+    return true;
+  }catch(_){ return false; }
+}
+const HAS_LS = tryStorage();
+
+function saveLocal(){
+  const json = JSON.stringify(state);
+  try{
+    if(HAS_LS){
+      _getLS().setItem(STORAGE_KEY, json);
+    } else {
+      // Cookie fallback. 4KB を超えると Cookie には収まらないので警告
+      if(json.length > 3800){
+        toast("データが大きすぎます。JSON書き出しを使ってください");
+        return;
+      }
+      setCookie(STORAGE_KEY, json, 3650);
+    }
+    toast("この端末に保存しました");
+  }catch(e){ toast("保存に失敗しました"); }
+}
+function loadLocal(){
+  try{
+    let raw = null;
+    if(HAS_LS){ raw = _getLS().getItem(STORAGE_KEY); }
+    if(!raw){ raw = getCookie(STORAGE_KEY); }
+    if(!raw) return false;
+    const parsed = JSON.parse(raw);
+    if(parsed && typeof parsed === "object"){
+      state = Object.assign(defaultState(), parsed);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+function exportJSON(){
+  pullFormToState();
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `money-calendar-${state.year}-${pad2(state.month)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast("バックアップを書き出しました");
+}
+function importJSON(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed || typeof parsed !== "object") throw 0;
+      state = Object.assign(defaultState(), parsed);
+      pushStateToForm();
+      renderAll();
+      toast("バックアップを読み込みました");
+    }catch(_){ toast("読込に失敗しました"); }
+  };
+  reader.readAsText(file);
+}
+
+/* ============ Compute balances/summary ============ */
+function compute(){
+  // Filter to current month
+  const ym = `${state.year}-${pad2(state.month)}`;
+  const monthEntries = state.entries.filter(e=>e.date && e.date.startsWith(ym));
+
+  const bal = { ...state.start };
+  // Apply each entry chronologically
+  const ordered = [...monthEntries].sort((a,b)=> a.date.localeCompare(b.date));
+  let sumExp=0, sumInc=0, sumTr=0, sumBor=0, sumRep=0;
+
+  for(const e of ordered){
+    const amt = Number(e.amount)||0;
+    if(e.type==="expense"){ bal[e.account] = (bal[e.account]||0) - amt; sumExp += amt; }
+    else if(e.type==="income"){ bal[e.account] = (bal[e.account]||0) + amt; sumInc += amt; }
+    else if(e.type==="borrow"){
+      // 借入: 借入残高が増える。受取口座(account) があれば残高に+
+      if(e.account && bal[e.account]!==undefined) bal[e.account] = (bal[e.account]||0) + amt;
+      // increase debt
+      if(e.debtAccount){ bal[e.debtAccount] = (bal[e.debtAccount]||0) + amt; }
+      else { bal.promise = (bal.promise||0) + amt; } // 既定
+      sumBor += amt;
+    }
+    else if(e.type==="repay"){
+      // 返済: 残高を減らし、借入残高も減らす
+      if(e.account && bal[e.account]!==undefined) bal[e.account] = (bal[e.account]||0) - amt;
+      if(e.debtAccount){ bal[e.debtAccount] = (bal[e.debtAccount]||0) - amt; }
+      else { bal.promise = (bal.promise||0) - amt; }
+      sumRep += amt;
+    }
+    else if(e.type==="transfer"){
+      if(e.fromAcc && bal[e.fromAcc]!==undefined) bal[e.fromAcc] -= amt;
+      if(e.toAcc && bal[e.toAcc]!==undefined) bal[e.toAcc] += amt;
+      sumTr += amt;
+    }
+  }
+
+  const total = (bal.wallet||0)+(bal.yucho||0)+(bal.seven||0)+(bal.onebank||0);
+  return { bal, total, sumExp, sumInc, sumTr, sumBor, sumRep, monthEntries:ordered };
+}
+
+/* ============ Render ============ */
+function renderAll(){
+  renderYM();
+  renderCalendar();
+  renderSummary();
+  renderDetailList();
+}
+
+function renderYM(){
+  $("#ym-label").textContent = `${state.year}年${state.month}月`;
+  $("#year").value = state.year;
+  $("#month").value = state.month;
+}
+
+function renderCalendar(){
+  const cal = $("#cal");
+  cal.innerHTML = "";
+  for(const d of DOW){
+    const div = document.createElement("div");
+    div.className = "dow" + (d==="日"?" sun":d==="土"?" sat":"");
+    div.textContent = d;
+    cal.appendChild(div);
+  }
+  const y=state.year, m=state.month;
+  const first = new Date(y, m-1, 1);
+  const firstDow = first.getDay();
+  const dim = daysInMonth(y,m);
+  const prevDim = daysInMonth(y, m-1===0?12:m-1);
+  const totalCells = Math.ceil((firstDow + dim)/7)*7;
+
+  // entries index by date
+  const ym = `${y}-${pad2(m)}`;
+  const byDate = {};
+  for(const e of state.entries){
+    if(!e.date || !e.date.startsWith(ym)) continue;
+    (byDate[e.date] = byDate[e.date] || []).push(e);
+  }
+  const today = new Date();
+  const todayStr = ymd(today.getFullYear(), today.getMonth()+1, today.getDate());
+
+  for(let i=0;i<totalCells;i++){
+    const cellDayNum = i - firstDow + 1;
+    let dY=y, dM=m, dN=cellDayNum, other=false;
+    if(cellDayNum<1){ other=true; dM=m-1; if(dM<1){dM=12;dY=y-1;} dN = prevDim + cellDayNum; }
+    else if(cellDayNum>dim){ other=true; dM=m+1; if(dM>12){dM=1;dY=y+1;} dN = cellDayNum - dim; }
+    const dateStr = ymd(dY,dM,dN);
+    const dow = new Date(dY,dM-1,dN).getDay();
+    const div = document.createElement("div");
+    div.className = "day" + (other?" other":"") + (dow===0?" sun":dow===6?" sat":"") + (dateStr===todayStr?" today":"");
+    const dh = document.createElement("div");
+    dh.className = "d-head";
+    const dnum = document.createElement("div");
+    dnum.className = "d-num";
+    dnum.textContent = dN;
+    const addBtn = document.createElement("button");
+    addBtn.className = "add"; addBtn.title = "明細追加"; addBtn.textContent = "+";
+    addBtn.addEventListener("click", ()=> openEntryModal(dateStr));
+    dh.appendChild(dnum); dh.appendChild(addBtn);
+    div.appendChild(dh);
+
+    const entries = byDate[dateStr] || [];
+    const wrap = document.createElement("div");
+    wrap.className = "entries";
+    for(const e of entries.slice(0,3)){
+      const pill = document.createElement("div");
+      pill.className = `entry-pill type-${e.type}`;
+      pill.innerHTML = `<span class="dot"></span><span class="pill-memo">${escapeHtml(e.memo||typeLabel(e.type))}</span><span class="pill-amt">${fmt(e.amount)}</span>`;
+      wrap.appendChild(pill);
+    }
+    if(entries.length>3){
+      const more = document.createElement("div");
+      more.style.fontSize="10px"; more.style.color="var(--ink-soft)";
+      more.textContent = `他 ${entries.length-3} 件`;
+      wrap.appendChild(more);
+    }
+    div.appendChild(wrap);
+    cal.appendChild(div);
+  }
+}
+
+function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+function renderSummary(){
+  const c = compute();
+  $("#sum-expense").textContent  = fmt(c.sumExp);
+  $("#sum-income").textContent   = fmt(c.sumInc);
+  $("#sum-transfer").textContent = fmt(c.sumTr);
+  $("#sum-borrow").textContent   = fmt(c.sumBor);
+  $("#sum-repay").textContent    = fmt(c.sumRep);
+  $("#bal-wallet").textContent   = fmt(c.bal.wallet);
+  $("#bal-yucho").textContent    = fmt(c.bal.yucho);
+  $("#bal-seven").textContent    = fmt(c.bal.seven);
+  $("#bal-onebank").textContent  = fmt(c.bal.onebank);
+  $("#bal-total").textContent    = fmt(c.total);
+  $("#bal-promise").textContent  = fmt(c.bal.promise);
+  $("#bal-onebank-debt").textContent = fmt(c.bal.onebankDebt);
+}
+
+function renderDetailList(){
+  const c = compute();
+  const list = $("#detail-list");
+  list.innerHTML = "";
+  $("#entry-count").textContent = `${c.monthEntries.length}件`;
+  if(c.monthEntries.length===0){
+    list.innerHTML = `<div style="text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:12px">明細はまだありません<br>カレンダーの「+」から追加</div>`;
+    return;
+  }
+  // Group by date
+  const groups = {};
+  for(const e of c.monthEntries){ (groups[e.date]=groups[e.date]||[]).push(e); }
+  const sortedDates = Object.keys(groups).sort();
+  for(const date of sortedDates){
+    const g = document.createElement("div");
+    g.className = "day-group";
+    const [yy,mm,dd] = date.split("-");
+    const dow = DOW[new Date(Number(yy),Number(mm)-1,Number(dd)).getDay()];
+    const head = document.createElement("div");
+    head.className = "day-group-head";
+    head.textContent = `${Number(mm)}/${Number(dd)}(${dow})`;
+    g.appendChild(head);
+    for(const e of groups[date]){
+      const row = document.createElement("div");
+      row.className = `entry-row type-${e.type}`;
+      const meta = e.type==="transfer"
+        ? `${accountName(e.fromAcc)} → ${accountName(e.toAcc)}`
+        : e.type==="borrow" || e.type==="repay"
+          ? `${accountName(e.account||"")} ・ ${accountName(e.debtAccount||"promise")}`
+          : accountName(e.account);
+      row.innerHTML = `
+        <div class="swatch"></div>
+        <div class="er-main">
+          <div class="er-top">
+            <span class="er-type">${typeLabel(e.type)}</span>
+            <span class="er-amt">${fmt(e.amount)}</span>
+          </div>
+          <div class="er-memo">${escapeHtml(e.memo||"—")}</div>
+          <div class="er-meta">${meta}</div>
+        </div>
+        <button class="del" title="削除" data-id="${e.id}">🗑</button>
+      `;
+      row.querySelector(".del").addEventListener("click", ()=>{
+        if(confirm("この明細を削除しますか?")){
+          state.entries = state.entries.filter(x=>x.id!==e.id);
+          renderAll();
+        }
+      });
+      g.appendChild(row);
+    }
+    list.appendChild(g);
+  }
+}
+
+/* ============ Form <-> State sync ============ */
+function pushStateToForm(){
+  $("#year").value = state.year;
+  $("#month").value = state.month;
+  $("#start-wallet").value = state.start.wallet||0;
+  $("#start-yucho").value = state.start.yucho||0;
+  $("#start-seven").value = state.start.seven||0;
+  $("#start-onebank").value = state.start.onebank||0;
+  $("#start-promise").value = state.start.promise||0;
+  $("#start-onebank-debt").value = state.start.onebankDebt||0;
+  $("#budget").value = state.budget||0;
+  $("#month-memo").value = state.memo||"";
+}
+function pullFormToState(){
+  state.year = Number($("#year").value);
+  state.month = Number($("#month").value);
+  state.start.wallet = Number($("#start-wallet").value)||0;
+  state.start.yucho = Number($("#start-yucho").value)||0;
+  state.start.seven = Number($("#start-seven").value)||0;
+  state.start.onebank = Number($("#start-onebank").value)||0;
+  state.start.promise = Number($("#start-promise").value)||0;
+  state.start.onebankDebt = Number($("#start-onebank-debt").value)||0;
+  state.budget = Number($("#budget").value)||0;
+  state.memo = $("#month-memo").value;
+}
+
+/* ============ Modal: Entry ============ */
+let entryType = "expense";
+function openEntryModal(date){
+  entryType = "expense";
+  $$("#seg-type button").forEach(b=> b.classList.toggle("on", b.dataset.type==="expense"));
+  $("#entry-date").value = date || ymd(state.year, state.month, new Date().getDate());
+  $("#entry-amount").value = "";
+  $("#entry-memo").value = "";
+  refreshAccountSelect();
+  $("#modal-entry").classList.add("open");
+  setTimeout(()=> $("#entry-amount").focus(), 50);
+}
+function refreshAccountSelect(){
+  const sel = $("#entry-account");
+  sel.innerHTML = "";
+  const opts = entryType==="borrow"
+    ? [...ACCOUNTS, ...DEBT_ACCOUNTS]  // 借入: 入金先 or 借入元
+    : entryType==="repay"
+    ? [...ACCOUNTS, ...DEBT_ACCOUNTS]
+    : [...ACCOUNTS];
+  for(const a of opts){
+    const o = document.createElement("option");
+    o.value = a.id; o.textContent = a.name; sel.appendChild(o);
+  }
+  // For borrow/repay, we present a single select: it represents the *cash account*; the debt account is auto from selection if user picked one of DEBT_ACCOUNTS — but to keep it simple per spec, allow user to choose any from the combined list.
+  const lbl = $("#lbl-account");
+  if(entryType==="expense") lbl.textContent = "入力先 (どの口座から支出)";
+  else if(entryType==="income") lbl.textContent = "入力先 (どの口座へ収入)";
+  else if(entryType==="borrow") lbl.textContent = "入力先 (借入の入金先 / プロミス・ワンバンク借入を選ぶと残高のみ増加)";
+  else if(entryType==="repay") lbl.textContent = "入力先 (返済元の口座 / プロミス・ワンバンク借入を選ぶと借入残高のみ減少)";
+}
+function saveEntry(){
+  const date = $("#entry-date").value;
+  const amount = Number($("#entry-amount").value)||0;
+  const memo = $("#entry-memo").value.trim();
+  const account = $("#entry-account").value;
+  if(!date){ toast("日付を入力してください"); return; }
+  if(amount<=0){ toast("金額を入れてください"); return; }
+  const entry = { id: uid(), type: entryType, date, amount, memo };
+
+  if(entryType==="expense" || entryType==="income"){
+    entry.account = account;
+  } else if(entryType==="borrow" || entryType==="repay"){
+    // If user picked a debt account directly, treat the cash account as none.
+    const isDebt = DEBT_ACCOUNTS.some(x=>x.id===account);
+    if(isDebt){
+      entry.account = null;
+      entry.debtAccount = account;
+    } else {
+      entry.account = account;
+      entry.debtAccount = "promise"; // default
+    }
+  }
+  state.entries.push(entry);
+  closeModals();
+  renderAll();
+}
+
+/* ============ Modal: Transfer ============ */
+function openTransferModal(){
+  $("#tr-date").value = ymd(state.year, state.month, new Date().getDate());
+  $("#tr-amount").value = "";
+  $("#tr-memo").value = "";
+  const from = $("#tr-from"), to = $("#tr-to");
+  from.innerHTML = ""; to.innerHTML = "";
+  for(const a of ACCOUNTS){
+    from.appendChild(new Option(a.name, a.id));
+    to.appendChild(new Option(a.name, a.id));
+  }
+  from.value = "wallet"; to.value = "yucho";
+  $("#modal-transfer").classList.add("open");
+}
+function saveTransfer(){
+  const date = $("#tr-date").value;
+  const fromAcc = $("#tr-from").value;
+  const toAcc = $("#tr-to").value;
+  const amount = Number($("#tr-amount").value)||0;
+  const memo = $("#tr-memo").value.trim();
+  if(!date){ toast("日付を入力してください"); return; }
+  if(fromAcc===toAcc){ toast("移動元と移動先を別にしてください"); return; }
+  if(amount<=0){ toast("金額を入れてください"); return; }
+  state.entries.push({ id:uid(), type:"transfer", date, fromAcc, toAcc, amount, memo });
+  closeModals();
+  renderAll();
+}
+function closeModals(){ $$(".modal-bg").forEach(m=>m.classList.remove("open")); }
+
+/* ============ Init UI ============ */
+function fillYearMonth(){
+  const y = $("#year"), m = $("#month");
+  const cy = new Date().getFullYear();
+  for(let i=cy-5;i<=cy+5;i++){
+    y.appendChild(new Option(`${i}年`, i));
+  }
+  for(let i=1;i<=12;i++){
+    m.appendChild(new Option(`${i}月`, i));
+  }
+}
+
+function bindEvents(){
+  $("#year").addEventListener("change", ()=>{ pullFormToState(); renderAll(); });
+  $("#month").addEventListener("change", ()=>{ pullFormToState(); renderAll(); });
+
+  ["start-wallet","start-yucho","start-seven","start-onebank","start-promise","start-onebank-debt","budget"]
+    .forEach(id => $("#"+id).addEventListener("input", ()=>{ pullFormToState(); renderSummary(); }));
+  $("#month-memo").addEventListener("input", ()=> pullFormToState());
+
+  $("#btn-prev").addEventListener("click", ()=>{
+    pullFormToState();
+    state.month--;
+    if(state.month<1){ state.month=12; state.year--; }
+    renderAll();
+  });
+  $("#btn-next").addEventListener("click", ()=>{
+    pullFormToState();
+    state.month++;
+    if(state.month>12){ state.month=1; state.year++; }
+    renderAll();
+  });
+  $("#btn-refresh").addEventListener("click", ()=>{ pullFormToState(); renderAll(); toast("更新しました"); });
+  $("#btn-transfer").addEventListener("click", openTransferModal);
+
+  $("#btn-save").addEventListener("click", ()=>{ pullFormToState(); saveLocal(); });
+  $("#btn-export").addEventListener("click", exportJSON);
+  $("#file-import").addEventListener("change", e=>{
+    const f = e.target.files[0]; if(f) importJSON(f);
+    e.target.value = "";
+  });
+
+  $("#btn-sample").addEventListener("click", insertSample);
+  $("#btn-clear").addEventListener("click", ()=>{
+    if(confirm("入力をすべてクリアしますか?(端末内保存は変更されません)")){
+      state = defaultState();
+      pushStateToForm();
+      renderAll();
+    }
+  });
+
+  // Modal type segments
+  $$("#seg-type button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      $$("#seg-type button").forEach(b=>b.classList.remove("on"));
+      btn.classList.add("on");
+      entryType = btn.dataset.type;
+      refreshAccountSelect();
+    });
+  });
+  $("#btn-save-entry").addEventListener("click", saveEntry);
+  $("#btn-save-transfer").addEventListener("click", saveTransfer);
+  $$("[data-close]").forEach(b=> b.addEventListener("click", closeModals));
+  $$(".modal-bg").forEach(m=> m.addEventListener("click", e=>{ if(e.target===m) closeModals(); }));
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModals(); });
+}
+
+function insertSample(){
+  if(state.entries.length>0 && !confirm("既存の明細にサンプルを追加しますか?")) return;
+  const y = state.year, m = state.month;
+  state.start = { wallet:30000, yucho:120000, seven:45000, onebank:80000, promise:50000, onebankDebt:30000 };
+  state.budget = 80000;
+  state.memo = "今月は外食を控える。";
+  const add = (d,t,o)=> state.entries.push({id:uid(), date:ymd(y,m,d), type:t, ...o});
+  add(1,"income",{account:"yucho", amount:250000, memo:"給料"});
+  add(3,"expense",{account:"wallet", amount:1200, memo:"ランチ"});
+  add(5,"expense",{account:"seven", amount:8500, memo:"スーパー"});
+  add(7,"transfer",{fromAcc:"yucho", toAcc:"wallet", amount:20000, memo:"ATM 出金"});
+  add(10,"expense",{account:"onebank", amount:65000, memo:"家賃"});
+  add(15,"repay",{account:"yucho", debtAccount:"promise", amount:15000, memo:"プロミス返済"});
+  add(20,"borrow",{account:"wallet", debtAccount:"promise", amount:30000, memo:"借入"});
+  add(22,"expense",{account:"wallet", amount:3200, memo:"本"});
+  add(25,"expense",{account:"seven", amount:5500, memo:"日用品"});
+  pushStateToForm();
+  renderAll();
+  toast("サンプルを入力しました");
+}
+
+/* ============ Boot ============ */
+fillYearMonth();
+loadLocal();
+pushStateToForm();
+bindEvents();
+renderAll();
+</script>
+</body>
+</html>
