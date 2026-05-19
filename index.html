@@ -49,6 +49,15 @@ textarea{resize:vertical;min-height:60px;font-family:inherit}
 @media (max-width:1180px){.app{grid-template-columns:280px 1fr;}.col-right{grid-column:1/-1}}
 @media (max-width:780px){.app{grid-template-columns:1fr;padding:12px;gap:12px}}
 
+/* View mode overrides */
+body[data-view="mobile"] .app{grid-template-columns:1fr !important;max-width:560px;padding:12px;gap:12px}
+body[data-view="mobile"] .col-right{grid-column:1/-1}
+body[data-view="mobile"] .cal{grid-template-columns:repeat(7,minmax(96px,1fr)) !important;min-width:720px !important}
+body[data-view="desktop"] .app{grid-template-columns:300px 1fr 340px !important;max-width:1480px;padding:18px;gap:18px;min-width:1180px}
+body[data-view="desktop"] .col-right{grid-column:auto !important}
+body[data-view="desktop"]{overflow-x:auto}
+body[data-view="desktop"] .cal{grid-template-columns:repeat(7,minmax(0,1fr)) !important;min-width:0 !important}
+
 header.brand{
   grid-column:1/-1;
   display:flex;align-items:center;justify-content:space-between;
@@ -147,8 +156,10 @@ header.brand{
 .modal-body{padding:8px 18px 16px}
 .modal-foot{padding:10px 18px 16px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--line)}
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--surface-2);padding:3px;border-radius:9px}
-.seg button{background:transparent;border:none;padding:7px 4px;border-radius:6px;font-size:12px;font-weight:600;color:var(--ink-soft)}
+.seg button{background:transparent;border:none;padding:7px 4px;border-radius:6px;font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer}
 .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.view-seg{display:inline-grid;grid-template-columns:repeat(3,auto);gap:2px}
+.view-seg button{padding:5px 10px;font-size:12px;white-space:nowrap}
 
 /* Toast */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:all .25s;z-index:100;pointer-events:none}
@@ -173,6 +184,11 @@ header.brand{
       </div>
     </div>
     <div class="cal-actions">
+      <div class="seg view-seg" id="seg-view" title="表示モード">
+        <button data-view="auto" class="on">自動</button>
+        <button data-view="mobile">📱</button>
+        <button data-view="desktop">💻</button>
+      </div>
       <button class="btn btn-sm" id="btn-sample">サンプル入力</button>
       <button class="btn btn-sm btn-danger" id="btn-clear">クリア</button>
     </div>
@@ -876,11 +892,56 @@ function insertSample(){
   toast("サンプルを入力しました");
 }
 
+/* ============ View mode ============ */
+const VIEW_KEY = "money-calendar-view";
+function applyView(mode){
+  if(mode === "auto"){
+    document.body.removeAttribute("data-view");
+  } else {
+    document.body.setAttribute("data-view", mode);
+  }
+  document.querySelectorAll("#seg-view button").forEach(b=>{
+    b.classList.toggle("on", b.dataset.view === mode);
+  });
+  // viewport 調整(モバイル版を PC でも縮小表示しすぎないように)
+  const vp = document.querySelector('meta[name="viewport"]');
+  if(mode === "desktop"){
+    vp.setAttribute("content", "width=1200, initial-scale=0.3, user-scalable=yes");
+  } else {
+    vp.setAttribute("content", "width=device-width, initial-scale=1, viewport-fit=cover");
+  }
+}
+function loadView(){
+  try{
+    if(HAS_LS){
+      const v = _getLS().getItem(VIEW_KEY);
+      if(v) return v;
+    }
+    const cv = getCookie(VIEW_KEY);
+    if(cv) return cv;
+  }catch(_){}
+  return "auto";
+}
+function saveView(mode){
+  try{
+    if(HAS_LS) _getLS().setItem(VIEW_KEY, mode);
+    else setCookie(VIEW_KEY, mode, 3650);
+  }catch(_){}
+}
+document.querySelectorAll("#seg-view button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const m = btn.dataset.view;
+    applyView(m);
+    saveView(m);
+  });
+});
+
 /* ============ Boot ============ */
 fillYearMonth();
 loadLocal();
 pushStateToForm();
 bindEvents();
+applyView(loadView());
 renderAll();
 </script>
 </body>
