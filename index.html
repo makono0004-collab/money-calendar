@@ -165,6 +165,16 @@ header.brand{
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:all .25s;z-index:100;pointer-events:none}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
+/* Floating save button */
+.fab-save{position:fixed;right:16px;bottom:16px;z-index:80;display:flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:999px;padding:12px 18px;font-weight:700;font-size:14px;box-shadow:0 8px 24px -8px rgba(28,26,23,.35),0 2px 6px rgba(28,26,23,.15);cursor:pointer;transition:transform .15s,background .2s}
+.fab-save:hover{background:#245848;transform:translateY(-1px)}
+.fab-save .dot{width:8px;height:8px;border-radius:50%;background:#fff;opacity:.7}
+.fab-save.saved{background:#5a544c}
+.fab-save.unsaved{background:var(--expense);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 8px 24px -8px rgba(185,70,47,.5),0 2px 6px rgba(185,70,47,.3)}50%{box-shadow:0 8px 24px -8px rgba(185,70,47,.8),0 0 0 6px rgba(185,70,47,.15)}}
+.fab-save .label{font-size:13px}
+@media (max-width:520px){.fab-save{padding:11px 16px;font-size:13px;right:12px;bottom:12px}}
+
 .amount-input{font-variant-numeric:tabular-nums;text-align:right}
 .muted{color:var(--ink-soft);font-size:11px;margin-top:4px}
 
@@ -368,6 +378,11 @@ header.brand{
   </div>
 </div>
 
+<button class="fab-save saved" id="fab-save" title="この端末に保存">
+  <span class="dot"></span>
+  <span class="label" id="fab-save-label">保存済み</span>
+</button>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -442,21 +457,40 @@ function tryStorage(){
 }
 const HAS_LS = tryStorage();
 
-function saveLocal(){
+function saveLocal(showToast){
   const json = JSON.stringify(state);
   try{
     if(HAS_LS){
       _getLS().setItem(STORAGE_KEY, json);
     } else {
-      // Cookie fallback. 4KB を超えると Cookie には収まらないので警告
       if(json.length > 3800){
-        toast("データが大きすぎます。JSON書き出しを使ってください");
-        return;
+        setSaveStatus("unsaved");
+        if(showToast!==false) toast("データが大きすぎます。JSON書き出しを使ってください");
+        return false;
       }
       setCookie(STORAGE_KEY, json, 3650);
     }
-    toast("この端末に保存しました");
-  }catch(e){ toast("保存に失敗しました"); }
+    setSaveStatus("saved");
+    if(showToast!==false) toast("この端末に保存しました");
+    return true;
+  }catch(e){
+    setSaveStatus("unsaved");
+    if(showToast!==false) toast("保存に失敗しました");
+    return false;
+  }
+}
+let _autosaveTimer = null;
+function setSaveStatus(s){
+  const fab = document.getElementById("fab-save"); if(!fab) return;
+  const lbl = document.getElementById("fab-save-label");
+  fab.classList.remove("saved","unsaved");
+  if(s==="saved"){ fab.classList.add("saved"); lbl.textContent = "保存済み"; }
+  else if(s==="unsaved"){ fab.classList.add("unsaved"); lbl.textContent = "未保存・押して保存"; }
+}
+function autoSave(){
+  setSaveStatus("unsaved");
+  clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(()=>{ saveLocal(false); }, 500);
 }
 function loadLocal(){
   try{
@@ -683,6 +717,7 @@ function renderDetailList(){
         if(confirm("この明細を削除しますか?")){
           state.entries = state.entries.filter(x=>x.id!==e.id);
           renderAll();
+          autoSave();
         }
       });
       g.appendChild(row);
@@ -773,6 +808,7 @@ function saveEntry(){
   state.entries.push(entry);
   closeModals();
   renderAll();
+  autoSave();
 }
 
 /* ============ Modal: Transfer ============ */
@@ -801,6 +837,7 @@ function saveTransfer(){
   state.entries.push({ id:uid(), type:"transfer", date, fromAcc, toAcc, amount, memo });
   closeModals();
   renderAll();
+  autoSave();
 }
 function closeModals(){ $$(".modal-bg").forEach(m=>m.classList.remove("open")); }
 
@@ -821,8 +858,8 @@ function bindEvents(){
   $("#month").addEventListener("change", ()=>{ pullFormToState(); renderAll(); });
 
   ["start-wallet","start-yucho","start-seven","start-onebank","start-promise","start-onebank-debt","budget"]
-    .forEach(id => $("#"+id).addEventListener("input", ()=>{ pullFormToState(); renderSummary(); }));
-  $("#month-memo").addEventListener("input", ()=> pullFormToState());
+    .forEach(id => $("#"+id).addEventListener("input", ()=>{ pullFormToState(); renderSummary(); autoSave(); }));
+  $("#month-memo").addEventListener("input", ()=>{ pullFormToState(); autoSave(); });
 
   $("#btn-prev").addEventListener("click", ()=>{
     pullFormToState();
@@ -839,7 +876,8 @@ function bindEvents(){
   $("#btn-refresh").addEventListener("click", ()=>{ pullFormToState(); renderAll(); toast("更新しました"); });
   $("#btn-transfer").addEventListener("click", openTransferModal);
 
-  $("#btn-save").addEventListener("click", ()=>{ pullFormToState(); saveLocal(); });
+  $("#btn-save").addEventListener("click", ()=>{ pullFormToState(); saveLocal(true); });
+  $("#fab-save").addEventListener("click", ()=>{ pullFormToState(); saveLocal(true); });
   $("#btn-export").addEventListener("click", exportJSON);
   $("#file-import").addEventListener("change", e=>{
     const f = e.target.files[0]; if(f) importJSON(f);
@@ -852,6 +890,7 @@ function bindEvents(){
       state = defaultState();
       pushStateToForm();
       renderAll();
+      setSaveStatus("unsaved");
     }
   });
 
@@ -889,6 +928,7 @@ function insertSample(){
   add(25,"expense",{account:"seven", amount:5500, memo:"日用品"});
   pushStateToForm();
   renderAll();
+  autoSave();
   toast("サンプルを入力しました");
 }
 
